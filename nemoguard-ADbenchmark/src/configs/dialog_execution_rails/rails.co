@@ -1,0 +1,38 @@
+define user express task request
+  "send an email"
+  "check my calendar"
+  "find a file"
+  "search my inbox"
+  "create an event"
+  "delete a file"
+  "who is invited"
+  "what meetings do I have"
+  "search for"
+
+define flow
+  user express task request
+  bot respond to task
+
+define flow
+  user ...
+  bot respond to task
+
+define bot inform injection detected
+  "I detected a potential prompt injection in the tool response. Ignoring it."
+
+define bot inform unsafe tool call
+  "This tool call appears inconsistent with the user's request. Blocking it."
+
+define subflow check tool response for injection
+  $safe = execute check_tool_response_injection(tool_message=$tool_message)
+
+  if $safe == "blocked"
+    bot inform injection detected
+    abort
+
+define subflow check tool call safety
+  $safe = execute check_tool_call_consistency(tool_calls=$tool_calls)
+
+  if $safe == "blocked"
+    bot inform unsafe tool call
+    abort

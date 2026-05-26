@@ -1,0 +1,36 @@
+# Colang 2.0 flows for indirect prompt injection detection.
+# Same logic as flows.co, written in Colang 2.0 syntax.
+
+import core
+import guardrails
+
+# -----------------------------------------------------------------------------
+# Retrieval rail
+# -----------------------------------------------------------------------------
+flow indirect injection detection on retrieval
+  """Detect indirect prompt injection inside retrieved chunks."""
+  $chunks_text = "\n\n".join($relevant_chunks)
+  $result = await InjectionDetectionAction(text=$chunks_text)
+  if $result.is_injection
+    bot say "I cannot use the retrieved sources because they appear to contain manipulation attempts."
+    abort
+
+# -----------------------------------------------------------------------------
+# Execution rail (tool output)
+# -----------------------------------------------------------------------------
+flow indirect injection detection on tool output
+  """Detect indirect prompt injection inside tool responses."""
+  $result = await InjectionDetectionAction(text=$action_output)
+  if $result.is_injection
+    bot say "I cannot use the tool response because it contains content attempting to manipulate my instructions."
+    abort
+
+# -----------------------------------------------------------------------------
+# Input rail
+# -----------------------------------------------------------------------------
+flow indirect injection detection on input
+  """Detect prompt injection in user-supplied content."""
+  $result = await InjectionDetectionAction(text=$user_message)
+  if $result.is_injection
+    bot say "Your message contains content that looks like a prompt injection attempt. I won't follow those instructions."
+    abort

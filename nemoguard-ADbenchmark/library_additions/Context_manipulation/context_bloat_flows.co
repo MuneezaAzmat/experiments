@@ -1,0 +1,53 @@
+# Colang 1.0 flows for context bloat / context manipulation detection.
+# Wires the `context_bloat_detection` action as:
+#   - Execution rail (tool output)     -- PRIMARY
+#   - Retrieval rail (RAG chunks)      -- PRIMARY
+#   - Input rail (user message)        -- SECONDARY (defense in depth)
+
+# -----------------------------------------------------------------------------
+# PRIMARY: Execution rail on tool output
+# Bloated/padded tool responses are the most common context-manipulation vector
+# in agentic systems. Tool outputs are not subject to char truncation 
+# -----------------------------------------------------------------------------
+define subflow context bloat detection on tool output
+  """Detect oversized / padded / repetitive tool responses before they reach the LLM."""
+  $bloat_result = execute context_bloat_detection(text=$action_output)
+  if $bloat_result.is_bloat
+    bot inform tool output bloated
+    stop
+
+define bot inform tool output bloated
+  "The tool response appeared oversized or padded with repetitive content. I'm not using it to avoid context manipulation."
+
+# -----------------------------------------------------------------------------
+# PRIMARY: Retrieval rail on RAG chunks
+# Supplements the per-chunk 400-char truncation with aggregate-budget,
+# entropy, and repetition checks. Catches padding attacks that fit within
+# the per-chunk cap but bloat in aggregate.
+# -----------------------------------------------------------------------------
+define subflow context bloat detection on retrieval
+  """Detect bloated or padded content in retrieved RAG chunks."""
+  $chunks_text = join($relevant_chunks, "\n\n")
+  $bloat_result = execute context_bloat_detection(text=$chunks_text)
+  if $bloat_result.is_bloat
+    bot inform retrieval bloated
+    stop
+
+define bot inform retrieval bloated
+  "The retrieved sources for this question appeared oversized or padded. I'm not using them to avoid context manipulation."
+
+# -----------------------------------------------------------------------------
+# SECONDARY: Input rail on user message
+# User input is rarely the bloat vector (UI-capped), but a cheap defense-in-depth
+# check. Use a more permissive threshold in config to avoid false positives on
+# legitimate long pastes.
+# -----------------------------------------------------------------------------
+define subflow context bloat detection on input
+  """Detect bloated / padded user-supplied content."""
+  $bloat_result = execute context_bloat_detection(text=$user_message)
+  if $bloat_result.is_bloat
+    bot refuse bloated input
+    stop
+
+define bot refuse bloated input
+  "Your message appears oversized or padded with repetitive content. Please send a shorter message focused on your question."

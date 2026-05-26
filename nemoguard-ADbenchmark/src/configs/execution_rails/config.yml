@@ -1,0 +1,14 @@
+models:
+  - type: main
+    engine: ollama
+    model: qwen2.5:14b
+    parameters:
+      base_url: "http://localhost:11434"
+
+rails:
+  tool_input:
+    flows:
+      - check tool response for injection
+  tool_output:
+    flows:
+      - check tool call safety

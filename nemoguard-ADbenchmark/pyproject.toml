@@ -1,0 +1,21 @@
+[project]
+name = "nemoguard-adbenchmark"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-ollama>=0.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

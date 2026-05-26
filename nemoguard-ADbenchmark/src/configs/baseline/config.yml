@@ -1,0 +1,8 @@
+models:
+  - type: main
+    engine: ollama
+    model: qwen2.5:14b
+    parameters:
+      base_url: "http://localhost:11434"
+
+passthrough: true

@@ -1,0 +1,44 @@
+# Colang 1.0 flows for indirect prompt injection detection.
+# Reuses the existing `injection_detection` action with the new
+# `indirect_prompt_injection` YARA rule, wired as retrieval, execution
+# (tool output), and input rails.
+
+# -----------------------------------------------------------------------------
+# Retrieval rail: scan retrieved RAG chunks before they reach the LLM prompt.
+# -----------------------------------------------------------------------------
+define subflow indirect injection detection on retrieval
+  """Detect indirect prompt injection inside retrieved chunks."""
+  $chunks_text = join($relevant_chunks, "\n\n")
+  $detection_result = execute injection_detection(text=$chunks_text)
+  if $detection_result.is_injection
+    bot inform retrieved content unsafe
+    stop
+
+define bot inform retrieved content unsafe
+  "I cannot use the retrieved sources for this question because they appear to contain instructions intended to manipulate me."
+
+# -----------------------------------------------------------------------------
+# Execution rail: scan tool/action output before feeding it back to the LLM.
+# -----------------------------------------------------------------------------
+define subflow indirect injection detection on tool output
+  """Detect indirect prompt injection inside tool/action responses."""
+  $detection_result = execute injection_detection(text=$action_output)
+  if $detection_result.is_injection
+    bot inform tool output unsafe
+    stop
+
+define bot inform tool output unsafe
+  "I cannot use the tool response because it contains content attempting to manipulate my instructions."
+
+# -----------------------------------------------------------------------------
+# Input rail (defense in depth): scan user input for the same patterns.
+# -----------------------------------------------------------------------------
+define subflow indirect injection detection on input
+  """Detect prompt injection in user-supplied content."""
+  $detection_result = execute injection_detection(text=$user_message)
+  if $detection_result.is_injection
+    bot refuse manipulation attempt
+    stop
+
+define bot refuse manipulation attempt
+  "I noticed your message contains content that looks like a prompt injection attempt. I won't follow those instructions."
